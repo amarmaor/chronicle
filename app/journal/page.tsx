@@ -9,10 +9,7 @@ interface JournalEntry {
   created_at: string
 }
 
-interface AttachmentCount {
-  entry_id: string
-  count: number
-}
+interface AttachmentRow { entry_id: string }
 
 export default async function JournalPage() {
   const supabase = await createClient()
@@ -23,7 +20,13 @@ export default async function JournalPage() {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Failed to fetch journal entries:', error)
+    return (
+      <main className="p-6">
+        <p role="alert" className="text-sm text-red-600">
+          Could not load entries. Please try again.
+        </p>
+      </main>
+    )
   }
 
   const journalEntries: JournalEntry[] = entries ?? []
@@ -38,7 +41,7 @@ export default async function JournalPage() {
       .in('entry_id', entryIds)
 
     if (attachments) {
-      attachmentCounts = (attachments as AttachmentCount[]).reduce<Record<string, number>>(
+      attachmentCounts = (attachments as AttachmentRow[] ?? []).reduce<Record<string, number>>(
         (acc, row) => {
           acc[row.entry_id] = (acc[row.entry_id] ?? 0) + 1
           return acc
@@ -111,8 +114,7 @@ export default async function JournalPage() {
                         <p className="text-sm text-gray-400 mt-0.5">{formattedDate}</p>
                         {entry.content && (
                           <p className="text-sm text-gray-600 mt-2 line-clamp-2">
-                            {entry.content.slice(0, 150)}
-                            {entry.content.length > 150 ? '…' : ''}
+                            {entry.content}
                           </p>
                         )}
                       </div>

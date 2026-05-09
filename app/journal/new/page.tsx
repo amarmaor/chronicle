@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -9,20 +9,20 @@ export default function NewEntryPage() {
   const router = useRouter()
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? [])
-    setSelectedFiles(files)
-  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setLoading(true)
+
+    const contentValue = content.trim()
+    if (!contentValue) {
+      setError('Content cannot be blank.')
+      setLoading(false)
+      return
+    }
 
     try {
       const supabase = createClient()
@@ -39,7 +39,7 @@ export default function NewEntryPage() {
         .insert({
           user_id: user.id,
           title: title.trim(),
-          content: content.trim(),
+          content: contentValue,
           is_digest: false,
         })
 
@@ -118,22 +118,10 @@ export default function NewEntryPage() {
             id="attachments"
             type="file"
             multiple
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="block w-full text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:border file:border-gray-300 file:rounded-lg file:text-sm file:font-medium file:bg-white hover:file:bg-gray-50 file:transition-colors"
+            disabled
+            className="block w-full text-sm text-gray-400 file:mr-3 file:py-1.5 file:px-3 file:border file:border-gray-200 file:rounded-lg file:text-sm file:font-medium file:bg-gray-100 cursor-not-allowed opacity-60"
           />
-          {selectedFiles.length > 0 && (
-            <ul className="mt-2 space-y-1">
-              {selectedFiles.map((file) => (
-                <li
-                  key={file.name}
-                  className="text-xs text-gray-600 bg-gray-100 rounded px-2 py-1"
-                >
-                  {file.name}
-                </li>
-              ))}
-            </ul>
-          )}
+          <p className="text-xs text-gray-400 mt-1">File uploads will be enabled in the next step.</p>
         </div>
 
         {error && (
