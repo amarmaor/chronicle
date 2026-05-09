@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-export const handler = async (event) => {
+export const handler = async () => {
   // 1. Compute date window: 7 days ago → now
   const now = new Date()
   // Anchor to start of today UTC to avoid execution-time drift
