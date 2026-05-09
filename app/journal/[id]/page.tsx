@@ -1,12 +1,23 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 interface Attachment {
   id: string
   filename: string
   content_type: string
+  s3_key: string
 }
+
+const s3 = new S3Client({
+  region: process.env.AWS_REGION!,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+})
 
 export default async function EntryDetailPage({
   params,
@@ -28,11 +39,23 @@ export default async function EntryDetailPage({
 
   const { data: attachments } = await supabase
     .from('attachments')
-    .select('id, filename, content_type')
+    .select('id, filename, content_type, s3_key')
     .eq('entry_id', id)
     .order('created_at', { ascending: true })
 
-  const entryAttachments: Attachment[] = attachments ?? []
+  const rawAttachments: Attachment[] = attachments ?? []
+
+  // Generate presigned GET URLs for each attachment (server component — AWS SDK is fine here)
+  const entryAttachments = await Promise.all(
+    rawAttachments.map(async (attachment) => {
+      const command = new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET_NAME!,
+        Key: attachment.s3_key,
+      })
+      const downloadUrl = await getSignedUrl(s3, command, { expiresIn: 3600 })
+      return { ...attachment, downloadUrl }
+    })
+  )
 
   const formattedDate = new Date(entry.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -77,7 +100,14 @@ export default async function EntryDetailPage({
                   key={attachment.id}
                   className="flex items-center gap-3 text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2"
                 >
-                  <span className="font-medium truncate">{attachment.filename}</span>
+                  <a
+                    href={attachment.downloadUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium truncate text-indigo-600 hover:underline"
+                  >
+                    {attachment.filename}
+                  </a>
                   <span className="shrink-0 text-xs text-gray-400">
                     {attachment.content_type}
                   </span>
