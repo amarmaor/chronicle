@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -13,8 +13,6 @@ export default function NewEntryPage() {
   const [loading, setLoading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const selected = e.target.files ? Array.from(e.target.files) : []
     setFiles(selected)
@@ -29,6 +27,19 @@ export default function NewEntryPage() {
     const contentValue = content.trim()
     if (!contentValue) {
       setError('Content cannot be blank.')
+      setLoading(false)
+      return
+    }
+
+    if (files.length > 10) {
+      setError('You can attach at most 10 files at once.')
+      setLoading(false)
+      return
+    }
+
+    const oversized = files.filter(f => f.size > 10 * 1024 * 1024)
+    if (oversized.length > 0) {
+      setError(`Files too large (max 10 MB): ${oversized.map(f => f.name).join(', ')}`)
       setLoading(false)
       return
     }
@@ -77,6 +88,7 @@ export default function NewEntryPage() {
               filename: file.name,
               contentType: file.type,
               entryId: entry.id,
+              fileSize: file.size,
             }),
           })
 
@@ -195,7 +207,6 @@ export default function NewEntryPage() {
             <span className="font-normal text-gray-400">(optional)</span>
           </label>
           <input
-            ref={fileInputRef}
             id="attachments"
             type="file"
             multiple
