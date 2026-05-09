@@ -90,6 +90,7 @@ export default function RegisterPage() {
             id="password"
             type="password"
             required
+            minLength={6}
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -99,7 +100,7 @@ export default function RegisterPage() {
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
+          <p role="alert" className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">
             {error}
           </p>
         )}
