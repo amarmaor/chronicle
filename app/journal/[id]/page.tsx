@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import DeleteEntryButton from './DeleteEntryButton'
 
 interface Attachment {
   id: string
@@ -65,13 +66,14 @@ export default async function EntryDetailPage({
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-6 flex items-center justify-between">
         <Link
           href="/journal"
           className="text-sm text-indigo-600 hover:underline"
         >
           ← Back to journal
         </Link>
+        <DeleteEntryButton entryId={id} />
       </div>
 
       <article className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
