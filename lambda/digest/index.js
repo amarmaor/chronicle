@@ -11,8 +11,12 @@ const supabase = createClient(
 export const handler = async (event) => {
   // 1. Compute date window: 7 days ago → now
   const now = new Date()
-  const weekAgo = new Date(now)
-  weekAgo.setDate(weekAgo.getDate() - 7)
+  // Anchor to start of today UTC to avoid execution-time drift
+  const weekAgo = new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate() - 7
+  ))
 
   // 2. Query all non-digest entries from the past 7 days
   // (service role key bypasses RLS — sees all users' data)
@@ -29,6 +33,19 @@ export const handler = async (event) => {
     return { statusCode: 200, body: 'No entries found' }
   }
 
+  // Guard against double-runs
+  const { data: existing } = await supabase
+    .from('journal_entries')
+    .select('id')
+    .eq('is_digest', true)
+    .gte('created_at', weekAgo.toISOString())
+    .limit(1)
+
+  if (existing && existing.length > 0) {
+    console.log('Digest already exists for this window — skipping')
+    return { statusCode: 200, body: 'Digest already exists for this window' }
+  }
+
   // 3. Group by user_id
   const byUser = {}
   for (const entry of entries) {
@@ -36,10 +53,11 @@ export const handler = async (event) => {
     byUser[entry.user_id].push(entry)
   }
 
-  // 4. Format dates for title
-  const startDate = weekAgo.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  const endDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  const digestTitle = `Weekly Digest — ${startDate}–${endDate}`
+  // 4. Format dates for title (UTC-safe, deterministic)
+  function formatDate(d) {
+    return d.toISOString().slice(0, 10) // "2025-05-04"
+  }
+  const digestTitle = `Weekly Digest — ${formatDate(weekAgo)} to ${formatDate(now)}`
 
   // 5. Build and insert a digest row per user
   const digests = Object.entries(byUser).map(([userId, userEntries]) => {
